@@ -1,0 +1,7 @@
+/*
+!/.gitignore
+!/README.md
+!/firmware/
+firmware/**/secrets.h
+firmware/**/*.bak-*
+firmware/**/build/
