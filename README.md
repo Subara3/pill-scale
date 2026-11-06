@@ -61,3 +61,7 @@ arduino-cli upload  --fqbn esp32:esp32:m5stack_atoms3 -p COM5 firmware\pill_scal
 LEDの色: 赤＝ユニットが読めない、橙＝未校正、青＝ゆれている、緑＝安定。本体のボタンを押すとゼロに合わせる。
 
 薬の数の判定は医療用途ではない（自分用の記録）。
+
+## ライセンス
+
+MIT License（LICENSE）
