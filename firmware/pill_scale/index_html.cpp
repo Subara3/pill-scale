@@ -133,7 +133,7 @@ async function tick(){
       $('item').innerHTML=h;
     }
     $('today').textContent='今日減った粒: '+(s.todayTaken??'-')+'（瓶の重さ '+(s.baseW===null?'-':s.baseW.toFixed(3)+' g')+'）';
-    $('ev').innerHTML=(s.events||[]).map(e=>'<tr><td>'+e.t+'</td><td>'+(e.n>0?e.n+'粒減った':e.n<0?(-e.n)+'粒増えた':'あいまい（'+e.x+'粒分）')+'</td></tr>').join('');
+    $('ev').innerHTML=(s.events||[]).map(e=>'<tr><td>'+e.t+'</td><td>'+(e.r?'補充・瓶の交換（'+(-e.x).toFixed(1)+'粒分増えた）':e.n>0?e.n+'粒減った':e.n<0?(-e.n)+'粒増えた':'あいまい（'+e.x+'粒分）')+'</td></tr>').join('');
     $('slot').value=s.slot;
     $('az').checked=s.autoZero;
     $('dbg').innerHTML='<tr><td>生の値</td><td>'+s.raw+'</td></tr><tr><td>平均</td><td>'+s.meanRaw+'</td></tr><tr><td>ばらつき</td><td>'+s.sdRaw+'</td></tr><tr><td>1gあたり</td><td>'+s.countsPerGram+'</td></tr><tr><td>読み取り失敗</td><td>'+s.errCount+'</td></tr><tr><td>時刻</td><td>'+s.time+'</td></tr>';

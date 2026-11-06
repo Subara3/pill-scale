@@ -89,7 +89,8 @@ static const float TAKE_TOL = 0.35f;       // 粒数の端数がこれより大�
 float baseW = NAN;          // ゆれる前の、落ち着いていた瓶の重さ
 bool disturbed = false;
 uint32_t settledSince = 0;
-struct TakeEv { time_t t; int n; float x; };
+static const float REFILL_PILLS = 5.0f;    // これ以上増えたら「補充・瓶の交換」として記録する
+struct TakeEv { time_t t; int n; float x; bool refill; };
 static const int MAX_EV = 30;
 TakeEv evs[MAX_EV];
 int evCount = 0;
@@ -159,19 +160,21 @@ void updateWeight() {
   }
 }
 
-void recordTake(int n, float x, float before, float after) {
+// refill が true のときは「補充・瓶の交換」。CSVの「減った粒」の欄には「補充」と書く
+void recordTake(int n, float x, float before, float after, bool refill = false) {
   time_t t = time(nullptr);
   if (evCount == MAX_EV) { for (int i = 1; i < MAX_EV; i++) evs[i - 1] = evs[i]; evCount--; }
-  evs[evCount++] = {t, n, x};
+  evs[evCount++] = {t, n, x, refill};
   bool fresh = !LittleFS.exists("/take.csv");
   File f = LittleFS.open("/take.csv", FILE_APPEND);
   if (f) {
     if (fresh) f.print("日時,品目,減った粒,粒数の計算値,前g,後g\n");
-    f.printf("%s,%s,%d,%.2f,%.3f,%.3f\n", nowText().c_str(),
-             curItem >= 0 ? items[curItem].name.c_str() : "", n, x, before, after);
+    String nText = refill ? String("補充") : String(n);
+    f.printf("%s,%s,%s,%.2f,%.3f,%.3f\n", nowText().c_str(),
+             curItem >= 0 ? items[curItem].name.c_str() : "", nText.c_str(), x, before, after);
     f.close();
   }
-  Serial.printf("# take n=%d x=%.2f before=%.3f after=%.3f\n", n, x, before, after);
+  Serial.printf("# take n=%d x=%.2f before=%.3f after=%.3f%s\n", n, x, before, after, refill ? " refill" : "");
 }
 
 void detectTake() {
@@ -191,7 +194,8 @@ void detectTake() {
   if (millis() - settledSince < SETTLE_MS) return;
   float x = (baseW - weightG) / unit;
   int n = (int)lround(x);
-  if (n != 0) recordTake(fabs(x - n) <= TAKE_TOL ? n : 0, x, baseW, weightG);
+  if (x <= -REFILL_PILLS) recordTake(0, x, baseW, weightG, true);   // 大きく増えた: 補充・瓶の交換
+  else if (n != 0) recordTake(fabs(x - n) <= TAKE_TOL ? n : 0, x, baseW, weightG);
   baseW = weightG;
   disturbed = false;
   settledSince = 0;
@@ -345,7 +349,7 @@ void handleState() {
       char buf[24];
       struct tm tv; localtime_r(&evs[i].t, &tv);
       strftime(buf, sizeof(buf), "%m/%d %H:%M", &tv);
-      j += "{\"t\":\"" + String(buf) + "\",\"n\":" + String(evs[i].n) + ",\"x\":" + String(evs[i].x, 2) + "}";
+      j += "{\"t\":\"" + String(buf) + "\",\"n\":" + String(evs[i].n) + ",\"x\":" + String(evs[i].x, 2) + ",\"r\":" + String(evs[i].refill ? 1 : 0) + "}";
     }
     j += "]";
   }
