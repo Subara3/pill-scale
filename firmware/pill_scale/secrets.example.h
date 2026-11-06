@@ -6,5 +6,3 @@
 #define WIFI_SSID     "ここにSSID"
 #define WIFI_PASSWORD "ここにパスワード"
 
-// 家のWi-Fiにつながらなかったとき、本体が自分で出すWi-Fiのパスワード（8文字以上）
-#define SETUP_AP_PASSWORD "pillscale-setup"

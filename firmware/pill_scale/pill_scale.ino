@@ -94,7 +94,6 @@ static const int MAX_EV = 30;
 TakeEv evs[MAX_EV];
 int evCount = 0;
 WebServer server(80);
-bool apMode = false;
 
 // ---- LED ----
 void led(uint8_t r, uint8_t g, uint8_t b) {
@@ -518,24 +517,37 @@ void setupWeb() {
   server.begin();
 }
 
+// 家のWi-Fiにだけつなぐ。つながらなくても、本体が自分でWi-Fiを出すことはしない
+// （出すと、近くにいる人がそのWi-Fiから画面を操作できてしまうため）。
+// つながるまで、loop() の中で30秒ごとにつなぎ直す。重さの記録はそのあいだも続ける。
 void setupWifi() {
   WiFi.mode(WIFI_STA);
   WiFi.setHostname("pillscale");
+  WiFi.setAutoReconnect(true);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  configTzTime("JST-9", "ntp.nict.jp", "pool.ntp.org");
   uint32_t t0 = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < 20000) {
     led(0, 0, 40); delay(250); led(0, 0, 0); delay(250);
   }
   if (WiFi.status() == WL_CONNECTED) {
     Serial.printf("# Wi-Fi OK: http://%s/  (http://pillscale.local/)\n", WiFi.localIP().toString().c_str());
-    configTzTime("JST-9", "ntp.nict.jp", "pool.ntp.org");
   } else {
-    apMode = true;
-    WiFi.mode(WIFI_AP);
-    WiFi.softAP("PillScale", SETUP_AP_PASSWORD);
-    Serial.printf("# Wi-Fi NG. AP mode: SSID=PillScale  http://%s/\n", WiFi.softAPIP().toString().c_str());
+    Serial.println("# Wi-Fi NG. 30秒ごとにつなぎ直します（secrets.h のSSIDとパスワード、2.4GHzかを確かめてください）");
   }
   if (MDNS.begin("pillscale")) MDNS.addService("http", "tcp", 80);
+}
+
+void keepWifi() {
+  static uint32_t lastTry = 0;
+  static bool wasUp = true;
+  bool up = WiFi.status() == WL_CONNECTED;
+  if (up && !wasUp) Serial.printf("# Wi-Fi OK: http://%s/\n", WiFi.localIP().toString().c_str());
+  wasUp = up;
+  if (up) return;
+  if (millis() - lastTry < 30000) return;
+  lastTry = millis();
+  WiFi.reconnect();
 }
 
 void setup() {
@@ -558,6 +570,7 @@ void setup() {
 
 void loop() {
   server.handleClient();
+  keepWifi();
 
   uint32_t now = millis();
   if (now - lastSampleMs >= SAMPLE_MS) {
